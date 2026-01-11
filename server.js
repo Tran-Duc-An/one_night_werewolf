@@ -116,6 +116,29 @@ io.on('connection', (socket) => {
             finishGame(currentRoomId);
         }
     });
+
+    // --- RESET GAME ---
+    socket.on('reset_game', () => {
+        const game = games[currentRoomId];
+        if (!game) return;
+
+        // Reset Game State variables
+        game.state = 'LOBBY';
+        game.nightIndex = 0;
+        game.nightSchedule = [];
+        game.votes = {};
+        game.centerCards = [];
+        game.waitingFor = [];
+
+        // Reset Player Roles
+        game.players.forEach(p => {
+            p.role = null;
+            p.originalRole = null;
+        });
+
+        // Notify all clients to return to lobby
+        io.to(currentRoomId).emit('game_reset', game.players);
+    });
     
     // --- DISCONNECT ---
     socket.on('disconnect', () => {
@@ -274,7 +297,7 @@ function finishGame(roomId) {
     Object.values(voteCounts).forEach(c => { if(c > maxVotes) maxVotes = c; });
     
     let deadPlayerIds = [];
-    if (maxVotes > 0) { // Some house rules require >1 vote, here we just say >0
+    if (maxVotes > 0) { 
         deadPlayerIds = Object.keys(voteCounts).filter(id => voteCounts[id] === maxVotes);
     }
 
@@ -282,13 +305,6 @@ function finishGame(roomId) {
     const wolves = game.players.filter(p => p.role === 'Werewolf');
     const deadPlayers = game.players.filter(p => deadPlayerIds.includes(p.id));
     const deadWolves = deadPlayers.filter(p => p.role === 'Werewolf');
-    
-    // Logic: 
-    // - If Wolf dies -> Village wins.
-    // - If no Wolf dies AND Wolves exist -> Wolves win.
-    // - If No Wolves exist:
-    //      - If nobody dies -> Village wins.
-    //      - If somebody dies -> Village loses.
     
     let winner = "";
     

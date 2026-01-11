@@ -37,7 +37,8 @@ const elements = {
     logBox: document.getElementById('logBox'),
     voteButtons: document.getElementById('voteButtons'),
     finalList: document.getElementById('finalList'),
-    winnerDisplay: document.getElementById('winnerDisplay')
+    winnerDisplay: document.getElementById('winnerDisplay'),
+    resultScreen: document.getElementById('resultScreen')
 };
 
 // --- ROLE DESCRIPTIONS (for Help Modal) ---
@@ -337,11 +338,80 @@ socket.on('game_results', (data) => {
     showScreen('result');
     elements.winnerDisplay.innerHTML = data.winner;
     elements.finalList.innerHTML = '';
+    
+    // Show role changes
     data.players.forEach(p => {
         const li = document.createElement('li');
-        li.innerHTML = `<strong>${p.name}</strong> started as ${p.originalRole} -> ended as <strong>${p.role}</strong>`;
+        li.innerHTML = `<strong>${p.name}</strong>: ${p.originalRole} &#8594; <strong style="color:#f1c40f">${p.role}</strong>`;
         elements.finalList.appendChild(li);
     });
+
+    // Handle "New Game" button
+    const isHost = data.players.length > 0 && data.players[0].id === socket.id;
+    const controlsArea = document.createElement('div');
+    controlsArea.style.marginTop = "20px";
+
+    if (isHost) {
+        const resetBtn = document.createElement('button');
+        resetBtn.innerText = "Setup New Game";
+        resetBtn.style.background = "#e67e22";
+        resetBtn.style.padding = "15px";
+        resetBtn.style.fontSize = "16px";
+        resetBtn.onclick = () => {
+            socket.emit('reset_game');
+        };
+        controlsArea.appendChild(resetBtn);
+    } else {
+        controlsArea.innerHTML = "<p style='color:#bdc3c7'>Waiting for host to start a new game...</p>";
+    }
+
+    // Clean up old controls and add new ones
+    const existingControls = document.getElementById('resultControls');
+    if(existingControls) existingControls.remove();
+    
+    controlsArea.id = "resultControls";
+    elements.resultScreen.appendChild(controlsArea);
+});
+
+socket.on('game_reset', (players) => {
+    // 1. Reset Logic Screens
+    showScreen('lobby');
+    
+    // 2. Clear Logs
+    elements.logBox.innerHTML = '';
+    log("New game lobby started.");
+
+    // 3. Reset Role Selectors (Host UI)
+    currentRoles = {};
+    totalSelected = 0;
+    renderRoleSelector();
+    
+    // 4. Update Player List
+    elements.playerList.innerHTML = '';
+    players.forEach(p => {
+        const li = document.createElement('li');
+        li.innerText = p.name + (p.id === socket.id ? " (You)" : "");
+        elements.playerList.appendChild(li);
+    });
+
+    // 5. Reset Counts
+    requiredRoles = players.length + 3;
+    elements.requiredCount.innerText = requiredRoles;
+    elements.currentCount.innerText = "0";
+    elements.currentCount.style.color = "#e74c3c";
+    
+    // 6. Reset Buttons
+    elements.startBtn.disabled = true;
+    elements.startBtn.innerText = `Select ${requiredRoles} more`;
+
+    // 7. Check Host visibility
+    if (players.length > 0 && players[0].id === socket.id) {
+        elements.hostControls.classList.remove('hidden');
+        elements.waitingMsg.classList.add('hidden');
+    } else {
+        elements.hostControls.classList.add('hidden');
+        elements.waitingMsg.classList.remove('hidden');
+    }
 });
 
 socket.on('force_game_end', (msg) => {
