@@ -22,7 +22,7 @@ const MASTER_NIGHT_ORDER = [
 io.on('connection', (socket) => {
     let currentRoomId = null;
 
-    socket.on('join_game', ({ name, roomId }) => {
+   socket.on('join_game', ({ name, roomId }, callback) => {
         socket.join(roomId);
         currentRoomId = roomId;
 
@@ -33,8 +33,20 @@ io.on('connection', (socket) => {
             };
         }
         const game = games[roomId];
+
+        // CHECK: Duplicate Name
+        const isDuplicate = game.players.find(p => p.name === name);
+        if (isDuplicate) {
+            // Send error back to client
+            if (callback) callback({ error: "Name already taken in this room" });
+            return; 
+        }
+
         game.players.push({ id: socket.id, name, role: null, originalRole: null });
         io.to(roomId).emit('player_list_update', game.players);
+        
+        // Tell client success
+        if (callback) callback({ success: true });
     });
 
     // --- START GAME (With Custom Roles) ---
@@ -97,11 +109,31 @@ io.on('connection', (socket) => {
     });
     
     // Safety Disconnect
+    // --- 2. DISCONNECT (Updated to handle Host leaving) ---
     socket.on('disconnect', () => {
         const game = games[currentRoomId];
-        if (game && game.state === 'NIGHT') {
-             game.waitingFor = game.waitingFor.filter(id => id !== socket.id);
-             if (game.waitingFor.length === 0) advanceNightTurn(currentRoomId);
+        if (!game) return;
+
+        // CHECK: Is the disconnecting user the HOST? (Host is usually index 0)
+        const isHost = (game.players.length > 0 && game.players[0].id === socket.id);
+
+        if (isHost) {
+            // Notify everyone and delete the room
+            io.to(currentRoomId).emit('force_game_end', "The Host has disconnected. Game Over.");
+            delete games[currentRoomId];
+        } else {
+            // Normal player left - remove them from list
+            game.players = game.players.filter(p => p.id !== socket.id);
+            
+            // If game is in lobby, update the list
+            if (game.state === 'LOBBY') {
+                io.to(currentRoomId).emit('player_list_update', game.players);
+            }
+            // If game is in NIGHT, handle wait list (Your existing logic)
+            else if (game.state === 'NIGHT') {
+                game.waitingFor = game.waitingFor.filter(id => id !== socket.id);
+                if (game.waitingFor.length === 0) advanceNightTurn(currentRoomId);
+            }
         }
     });
 });
