@@ -43,6 +43,41 @@ const elements = {
     winnerDisplay: document.getElementById('winnerDisplay')
 };
 
+// --- ROLE DESCRIPTIONS ---
+const ROLE_DESCRIPTIONS = {
+    'Werewolf': 'Wake up and look for other Werewolves. If you are alone, you may look at a center card.',
+    'Minion': 'Wake up and see who the Werewolves are. They do not know who you are. Help them win.',
+    'Seer': 'Wake up and look at another player\'s card OR two cards from the center.',
+    'Robber': 'Wake up and swap your card with another player\'s card. You then view your new card.',
+    'Troublemaker': 'Wake up and swap two other players\' cards without looking at them.',
+    'Insomniac': 'Wake up and look at your own card to see if it changed.',
+    'Drunk': 'Wake up and swap your card with a center card without looking at it.',
+    'Villager': 'No special ability. Sleep through the night.',
+    'Mason': 'Wake up and look for the other Mason.',
+    'Hunter': 'If you die, the person you voted for also dies.'
+};
+
+// Toggle Modal Function
+window.toggleRoleModal = () => {
+    const modal = document.getElementById('roleModal');
+    const list = document.getElementById('roleGuideList');
+    
+    if (modal.classList.contains('hidden')) {
+        // Generate list
+        list.innerHTML = '';
+        Object.entries(ROLE_DESCRIPTIONS).forEach(([role, desc]) => {
+            list.innerHTML += `
+                <div class="role-info-item">
+                    <div class="role-info-name">${role}</div>
+                    <div class="role-info-desc">${desc}</div>
+                </div>`;
+        });
+        modal.classList.remove('hidden');
+    } else {
+        modal.classList.add('hidden');
+    }
+};
+
 // --- UTILS ---
 function showScreen(name) {
     Object.values(screens).forEach(el => el.classList.add('hidden'));
@@ -212,7 +247,29 @@ socket.on('your_turn', (data) => {
     elements.targetButtons.appendChild(done);
 });
 
-socket.on('action_result', (msg) => { alert(msg); log(msg); });
+socket.on('action_result', (msg) => {
+    // 1. Show the result to the user
+    alert(msg);
+    log(msg);
+
+    // 2. DISABLE ACTIONS (The Fix)
+    // We hide the action buttons so they cannot click "View Center" again.
+    const container = document.getElementById('targetButtons');
+    
+    // Clear all action buttons
+    container.innerHTML = '';
+
+    // Only show the "Done" button now
+    const doneBtn = document.createElement('button');
+    doneBtn.innerText = "ACTION COMPLETE - GO TO SLEEP";
+    doneBtn.style.background = "#2c3e50"; 
+    doneBtn.style.width = "100%";
+    doneBtn.onclick = () => {
+        socket.emit('turn_done');
+        document.getElementById('actionArea').classList.add('hidden');
+    };
+    container.appendChild(doneBtn);
+});
 
 // --- 4. DAY & RESULTS ---
 socket.on('phase_change', (ph) => {
