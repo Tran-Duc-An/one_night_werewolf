@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One Night Ultimate Werewolf</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background: #2c3e50; color: white; margin: 0; padding: 0; }
+        .hidden { display: none !important; }
+        .screen { max-width: 600px; margin: 20px auto; padding: 20px; background: #34495e; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        
+        button { padding: 10px 15px; cursor: pointer; background: #27ae60; border: none; color: white; border-radius: 5px; font-size: 14px; margin: 2px; }
+        button:hover { background: #2ecc71; }
+        button:disabled { background: #7f8c8d; cursor: not-allowed; }
+        
+        .target-btn { background: #e67e22; width: 100%; margin: 5px 0; padding: 12px; font-size: 16px; }
+        .vote-btn { background: #c0392b; width: 100%; margin: 5px 0; padding: 12px; font-size: 16px; }
+        
+        input { padding: 10px; border-radius: 5px; border: none; width: 70%; margin-bottom: 10px; }
+        
+        /* Role Selector Styles */
+        .role-selector { display: flex; justify-content: space-between; align-items: center; background: #2c3e50; padding: 8px; margin: 5px 0; border-radius: 5px; }
+        .role-controls button { width: 30px; height: 30px; line-height: 10px; padding: 0; font-weight: bold; }
+        .role-count { margin: 0 10px; font-weight: bold; width: 20px; display: inline-block; }
+        
+        .role-badge { display: inline-block; background: #3498db; padding: 4px 8px; border-radius: 12px; font-size: 12px; margin: 3px; font-weight: bold; }
+        .role-badge.bad { background: #e74c3c; } 
+
+        #logBox { background: #222; color: #0f0; padding: 10px; height: 100px; overflow-y: scroll; text-align: left; font-family: monospace; margin-top: 20px; font-size: 12px; }
+    </style>
+    <script src="/socket.io/socket.io.js"></script> 
+</head>
+<body>
+
+    <div id="loginScreen" class="screen">
+        <h1>One Night Werewolf</h1>
+        <input type="text" id="username" placeholder="Enter your name" />
+        <input type="text" id="roomId" placeholder="Room ID (e.g. room1)" value="room1" />
+        <br><br>
+        <button id="joinBtn">Join Game</button>
+    </div>
+
+    <div id="lobbyScreen" class="screen hidden">
+        <h2>Lobby: <span id="lobbyRoomName" style="color:#f1c40f"></span></h2>
+        
+        <div style="display: flex; gap: 10px; text-align: left;">
+            <div style="flex: 1;">
+                <h3>Players</h3>
+                <ul id="playerList" style="list-style: none; padding: 0;"></ul>
+            </div>
+            
+            <div id="hostControls" class="hidden" style="flex: 1.5; border-left: 1px solid #555; padding-left: 10px;">
+                <h3>Select Roles</h3>
+                <p style="font-size: 12px; color: #bdc3c7;">Needed: <span id="requiredCount">0</span> | Selected: <span id="currentCount">0</span></p>
+                
+                <div id="roleSelectorContainer" style="max-height: 200px; overflow-y: auto;">
+                    </div>
+
+                <button id="startBtn" style="width: 100%; margin-top: 10px; background: #f39c12;">Start Game</button>
+            </div>
+        </div>
+        
+        <p id="waitingMsg" class="timer">Waiting for host to configure game...</p>
+    </div>
+
+    <div id="nightScreen" class="screen hidden">
+        <h2>Night Phase</h2>
+        <div id="nightRoleSummary" style="background: #444; padding: 10px; border-radius: 5px; margin-bottom: 10px;"></div>
+        
+        <div style="font-size: 20px; margin: 20px 0; border: 2px dashed #f1c40f; padding: 10px;">
+            You are: <strong id="myRoleDisplay" style="color: #f1c40f; font-size: 24px;">???</strong>
+        </div>
+        
+        <h3 id="nightStatus">Everyone, close your eyes...</h3>
+        
+        <div id="actionArea" class="hidden">
+            <div style="background: #e67e22; padding: 10px; border-radius: 5px; margin-bottom: 10px; animation: pulse 1s infinite;">
+                <strong>IT IS YOUR TURN!</strong>
+            </div>
+            <div id="targetButtons"></div>
+        </div>
+    </div>
+
+    <div id="dayScreen" class="screen hidden">
+        <h2>Day Phase</h2>
+        <div id="dayRoleSummary" style="background: #444; padding: 10px; border-radius: 5px; margin-bottom: 10px;"></div>
+        <p>Discuss! Who is the Werewolf?</p>
+        <p>Your Role: <strong id="dayRoleDisplay"></strong></p>
+        <h3>Cast your vote:</h3>
+        <div id="voteButtons"></div>
+    </div>
+
+    <div id="resultScreen" class="screen hidden">
+        <h2>Game Over</h2>
+        <div id="winnerDisplay" style="font-size: 24px; font-weight: bold; margin: 15px 0;"></div>
+        <ul id="finalList" style="list-style: none; padding: 0; text-align: left;"></ul>
+        <button onclick="location.reload()" style="margin-top: 20px;">Play Again</button>
+    </div>
+
+    <div class="screen" style="margin-top: 0; padding-top: 0;">
+        <div id="logBox"></div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+    <style>@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }</style>
+</body>
+</html>
